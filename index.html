@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrandGuard AI Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen p-8">
+    <div class="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
+        <h1 class="text-2xl font-bold text-blue-500 mb-2">BrandGuard AI Portal</h1>
+        <p class="text-slate-400 mb-6">Submit your draft content for automated pre-publication governance review.</p>
+        
+        <form id="auditForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1 text-slate-300">Content Title / ID</label>
+                <input type="text" id="contentTitle" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" value="Q3 Launch Copy">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1 text-slate-300">Draft Content (Text / Copy)</label>
+                <textarea id="draftText" rows="6" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">Hey guys! Try out our 100% risk-free app today for guaranteed profit.</textarea>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition duration-200 cursor-pointer">
+                Run Brand Compliance Audit
+            </button>
+        </form>
+
+        <div id="resultContainer" class="mt-8 hidden border-t border-slate-800 pt-6">
+            <h2 class="text-lg font-semibold mb-3">Audit Results</h2>
+            <div id="outputCard" class="p-4 rounded-lg bg-slate-950 border border-slate-800"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('auditForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const resultBox = document.getElementById('resultContainer');
+            const outputCard = document.getElementById('outputCard');
+            
+            btn.textContent = "Analyzing Content...";
+            btn.disabled = true;
+
+            const payload = {
+                title: document.getElementById('contentTitle').value,
+                text: document.getElementById('draftText').value
+            };
+
+            try {
+                // USE YOUR PERMANENT PRODUCTION WEBHOOK URL HERE
+                const webhookUrl = 'https://random-words.loca.lt/webhook/brand-audit';                
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const rawText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (err) {
+                    data = { raw_output: rawText };
+                }
+
+                resultBox.classList.remove('hidden');
+                
+                // Handle n8n data structure variations safely
+                const resObj = Array.isArray(data) ? (data[0]?.json || data[0]) : data;
+                const score = resObj.brand_score ?? resObj.score ?? 65;
+                const summary = resObj.summary || resObj.message || "Audit completed successfully.";
+
+                outputCard.innerHTML = `
+                    <p class="text-xl font-bold mb-2">Brand Score: <span class="${score >= 85 ? 'text-emerald-400' : 'text-amber-400'}">${score}/100</span></p>
+                    <p class="text-sm text-slate-300 mb-4">${summary}</p>
+                    <div class="text-xs font-mono bg-slate-900 p-4 rounded border border-slate-800 overflow-x-auto text-emerald-300">
+                        <pre>${JSON.stringify(resObj, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (err) {
+                resultBox.classList.remove('hidden');
+                outputCard.innerHTML = `<p class="text-red-400 font-semibold">Error: ${err.message}</p>`;
+            } finally {
+                btn.textContent = "Run Brand Compliance Audit";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
